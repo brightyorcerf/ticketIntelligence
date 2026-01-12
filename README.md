@@ -1,4 +1,6 @@
-# 🎫 AI Ticket Analyzer (Gemini Edition)
+# 🎫 AI Ticket Analyzer 
+
+![architecture](architecture.jpg) 
 
 **Intelligent customer support ticket processing powered by Google's Gemini AI** — automatically categorize, analyze sentiment, assess urgency, and route tickets with precision.
 
