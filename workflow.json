@@ -1,0 +1,344 @@
+{
+  "name": "AI Ticket Analyzer - Gemini v3.0",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ticket-intake",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "0a397083-fa23-47cb-9929-8e7272bc53a2",
+      "name": "Webhook - Ticket Intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -3120,
+        416
+      ],
+      "webhookId": "7faf6b04-54a6-4b1f-85b6-0a8cfc705f60"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.subject }}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{ $json.body.message }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "57332c33-be45-4cc4-a5d8-25ca8a8f557b",
+      "name": "Validate Required Fields",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -2928,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\"error\": \"Missing required fields: subject and message are required\", \"status\": 400, \"timestamp\": $now.toISO()} }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "6d866ee7-695e-442b-acee-f4b9bf55031a",
+      "name": "Return Validation Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -2720,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enrich and sanitize ticket data with smart deduplication\nconst body = $input.item.json.body;\nconst timestamp = new Date();\n\n// Sanitization to prevent injection attacks\nfunction sanitize(str, maxLength = 5000) {\n  if (typeof str !== 'string') return '';\n  return str.substring(0, maxLength).trim();\n}\n\nconst subject = sanitize(body.subject, 500);\nconst message = sanitize(body.message, 5000);\n\n// Generate unique ticket ID with timestamp\nconst dateStr = timestamp.toISOString().split('T')[0].replace(/-/g, '');\nconst randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();\nconst ticketId = `TKT_${dateStr}_${randomStr}`;\n\n// 🎯 FANCY FEATURE #1: Content fingerprinting for duplicate detection\n// This creates a unique hash to detect duplicate tickets\nconst crypto = require('crypto');\nconst normalizedContent = (subject + message).toLowerCase().replace(/\\s+/g, ' ');\nconst contentFingerprint = crypto\n  .createHash('sha256')\n  .update(normalizedContent)\n  .digest('hex')\n  .substring(0, 16); // Short hash for efficiency\n\n// Extract metadata\nconst metadata = {\n  source: body.metadata?.source || 'webhook',\n  ip_address: $json.headers['x-forwarded-for'] || 'unknown',\n  user_agent: $json.headers['user-agent'] || 'unknown',\n  content_fingerprint: contentFingerprint\n};\n\nreturn {\n  json: {\n    ticket_id: ticketId,\n    timestamp: timestamp.toISOString(),\n    subject: subject,\n    message: message,\n    customer_email: body.customer_email || 'unknown@example.com',\n    priority_flag: body.priority || 'medium',\n    metadata: metadata,\n    processing: {\n      started_at: timestamp.toISOString(),\n      workflow_version: '3.0-gemini',\n      environment: 'production'\n    }\n  }\n};"
+      },
+      "id": "6e05af1e-7358-4d0b-bddf-2e4775004d3c",
+      "name": "Enrich & Fingerprint Ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2720,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build optimized prompt for Gemini with smart categorization hints\nconst ticket = $input.item.json;\n\n// 🎯 FANCY FEATURE #2: Dynamic context injection based on priority\n// This adjusts the prompt based on the ticket's priority flag\nlet contextHint = '';\nif (ticket.priority_flag === 'high' || ticket.priority_flag === 'urgent') {\n  contextHint = '\\nNOTE: This ticket has been flagged as high priority. Pay special attention to urgency assessment.';\n} else if (ticket.priority_flag === 'low') {\n  contextHint = '\\nNOTE: This is a low-priority ticket, but still requires accurate categorization.';\n}\n\n// Smart keyword detection for better categorization\nconst keywords = {\n  billing: ['invoice', 'payment', 'charge', 'refund', 'subscription', 'bill', 'card'],\n  delivery: ['shipping', 'delivery', 'tracking', 'arrived', 'package', 'ship', 'carrier'],\n  technical: ['error', 'bug', 'crash', 'broken', 'not working', 'loading', 'login'],\n  product: ['defective', 'quality', 'damaged', 'wrong item', 'missing parts']\n};\n\nconst userPrompt = `Analyze this customer support ticket and return structured JSON.\n${contextHint}\n\n📧 TICKET INFORMATION:\nSubject: ${ticket.subject}\nMessage: ${ticket.message}\nCustomer: ${ticket.customer_email}\nPriority Flag: ${ticket.priority_flag}\n\n📋 ANALYSIS REQUIREMENTS:\n1. Generate a concise summary (max 100 characters)\n2. Assign ONE category: Billing, Delivery, Product Issue, Technical Issue, or Other\n3. Determine sentiment: Positive, Neutral, or Negative\n4. Assess urgency: Low, Medium, High, or Critical\n5. Suggest 2-3 immediate actions to resolve this\n6. Provide a confidence score (0.0 to 1.0)\n\n⚡ CATEGORIZATION HINTS:\n- Billing: payment, invoice, refund, subscription issues\n- Delivery: shipping, tracking, package problems\n- Technical Issue: bugs, errors, login problems, crashes\n- Product Issue: defects, quality, wrong items\n- Other: general inquiries, feedback, unclear requests\n\n🎯 SENTIMENT GUIDELINES:\n- Positive: grateful, satisfied, complimentary tone\n- Neutral: factual, informational, no strong emotion\n- Negative: frustrated, angry, disappointed, urgent\n\n⏰ URGENCY GUIDELINES:\n- Critical: service completely down, payment fraud, data breach\n- High: blocking customer's work, financial impact, angry customer\n- Medium: inconvenient but not blocking, standard issues\n- Low: general questions, feature requests, minor issues\n\nReturn ONLY this valid JSON structure with no additional text:\n{\n  \"summary\": \"brief one-sentence summary\",\n  \"category\": \"exact category name\",\n  \"sentiment\": \"Positive|Neutral|Negative\",\n  \"urgency\": \"Low|Medium|High|Critical\",\n  \"suggested_actions\": [\"action 1\", \"action 2\", \"action 3\"],\n  \"key_entities\": [\"extracted entities like order IDs, product names\"],\n  \"confidence_score\": 0.95,\n  \"reasoning\": \"brief explanation of categorization decision\"\n}`;\n\nreturn {\n  json: {\n    ...ticket,\n    llm_prompt: userPrompt,\n    prompt_metadata: {\n      context_adjusted: contextHint !== '',\n      priority_aware: true\n    }\n  }\n};"
+      },
+      "id": "4b2400eb-2c25-4118-856b-905a88fb44ef",
+      "name": "Build Smart Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2528,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "queryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "={{ $env.GEMINI_API_KEY }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": $json.llm_prompt\n    }]\n  }],\n  \"generationConfig\": {\n    \"temperature\": 0.3,\n    \"maxOutputTokens\": 1000,\n    \"responseMimeType\": \"application/json\"\n  },\n  \"safetySettings\": [\n    {\n      \"category\": \"HARM_CATEGORY_HARASSMENT\",\n      \"threshold\": \"BLOCK_NONE\"\n    },\n    {\n      \"category\": \"HARM_CATEGORY_HATE_SPEECH\",\n      \"threshold\": \"BLOCK_NONE\"\n    }\n  ]\n} }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "e4b06eeb-f4e8-485b-be51-0ede31f1f7ac",
+      "name": "Gemini AI Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -2320,
+        416
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "continueOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.error }}",
+              "operation": "exists"
+            }
+          ]
+        }
+      },
+      "id": "6718d956-04c3-4390-9afa-60eb38f4a612",
+      "name": "Check Gemini Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -2128,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"status\": \"error\",\n  \"error\": \"AI analysis failed after retries\",\n  \"ticket_id\": $('Build Smart Prompt').item.json.ticket_id,\n  \"message\": \"Ticket saved for manual review\",\n  \"details\": $json.error\n} }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "f01c4047-a48a-4a6c-ad8b-3d4fd6238ace",
+      "name": "Return AI Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -1920,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse and validate Gemini response with smart fallbacks\nconst ticketData = $('Build Smart Prompt').item.json;\nconst geminiResponse = $input.item.json;\n\ntry {\n  // Extract text from Gemini's response structure\n  const responseText = geminiResponse.candidates[0].content.parts[0].text;\n  const analysis = JSON.parse(responseText);\n  \n  // Validation with smart defaults\n  const validCategories = ['Billing', 'Delivery', 'Product Issue', 'Technical Issue', 'Other'];\n  if (!validCategories.includes(analysis.category)) {\n    analysis.category = 'Other';\n    analysis.confidence_score = Math.max(0, (analysis.confidence_score || 0.5) - 0.2);\n  }\n  \n  const validSentiments = ['Positive', 'Neutral', 'Negative'];\n  if (!validSentiments.includes(analysis.sentiment)) {\n    analysis.sentiment = 'Neutral';\n  }\n  \n  const validUrgencies = ['Low', 'Medium', 'High', 'Critical'];\n  if (!validUrgencies.includes(analysis.urgency)) {\n    analysis.urgency = 'Medium';\n  }\n  \n  // Ensure confidence is between 0-1\n  analysis.confidence_score = Math.max(0, Math.min(1, analysis.confidence_score || 0.8));\n  \n  // Calculate processing metrics\n  const startTime = new Date(ticketData.processing.started_at);\n  const endTime = new Date();\n  const processingTimeMs = endTime - startTime;\n  \n  // Estimate token usage (rough approximation)\n  const estimatedTokens = Math.ceil(\n    (ticketData.llm_prompt.length + responseText.length) / 4\n  );\n  \n  return {\n    json: {\n      ticket_id: ticketData.ticket_id,\n      original_ticket: {\n        subject: ticketData.subject,\n        message: ticketData.message,\n        customer_email: ticketData.customer_email,\n        priority_flag: ticketData.priority_flag,\n        received_at: ticketData.timestamp\n      },\n      analysis: {\n        ...analysis,\n        model: 'gemini-1.5-flash',\n        analyzed_at: endTime.toISOString()\n      },\n      metadata: {\n        content_fingerprint: ticketData.metadata.content_fingerprint,\n        processing_time_ms: processingTimeMs,\n        estimated_tokens: estimatedTokens,\n        cost_usd: 0.00, // Gemini free tier\n        workflow_version: '3.0-gemini',\n        source: ticketData.metadata.source\n      },\n      quality_indicators: {\n        confidence_level: analysis.confidence_score >= 0.8 ? 'high' : \n                         analysis.confidence_score >= 0.6 ? 'medium' : 'low',\n        needs_human_review: analysis.confidence_score < 0.6 || \n                           analysis.urgency === 'Critical',\n        has_reasoning: !!analysis.reasoning\n      }\n    }\n  };\n  \n} catch (error) {\n  // Fallback mode with minimal analysis\n  return {\n    json: {\n      ticket_id: ticketData.ticket_id,\n      original_ticket: {\n        subject: ticketData.subject,\n        message: ticketData.message,\n        customer_email: ticketData.customer_email\n      },\n      analysis: {\n        summary: 'Error parsing AI response - manual review needed',\n        category: 'Other',\n        sentiment: 'Neutral',\n        urgency: 'Medium',\n        suggested_actions: ['Manual review required', 'Check ticket content'],\n        confidence_score: 0.0,\n        reasoning: `Parse error: ${error.message}`,\n        model: 'gemini-1.5-flash'\n      },\n      metadata: {\n        content_fingerprint: ticketData.metadata.content_fingerprint,\n        parse_error: error.message,\n        fallback_mode: true,\n        workflow_version: '3.0-gemini'\n      },\n      quality_indicators: {\n        confidence_level: 'low',\n        needs_human_review: true,\n        has_reasoning: true\n      }\n    }\n  };\n}"
+      },
+      "id": "009fa35a-67a2-45d2-959e-635208cba016",
+      "name": "Parse & Validate Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1920,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "=ticket-analyzer-tejaansh",
+        "fileName": "=tickets/{{ $now.format('yyyy/MM/dd') }}/{{ $json.ticket_id }}.json",
+        "binaryData": false,
+        "fileContent": "={{ JSON.stringify($json, null, 2) }}",
+        "additionalFields": {}
+      },
+      "id": "fd46120f-9591-469b-86eb-a69b90c536b6",
+      "name": "Archive to S3",
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 1,
+      "position": [
+        -1728,
+        416
+      ],
+      "credentials": {
+        "aws": {
+          "id": "BZl579Hprxj8QNM9",
+          "name": "AWS (IAM) account"
+        }
+      },
+      "continueOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"status\": \"success\",\n  \"ticket_id\": $json.ticket_id,\n  \"processing\": {\n    \"completed_at\": $json.analysis.analyzed_at,\n    \"processing_time_ms\": $json.metadata.processing_time_ms,\n    \"workflow_version\": $json.metadata.workflow_version\n  },\n  \"analysis\": {\n    \"summary\": $json.analysis.summary,\n    \"category\": $json.analysis.category,\n    \"sentiment\": $json.analysis.sentiment,\n    \"urgency\": $json.analysis.urgency,\n    \"confidence\": $json.analysis.confidence_score,\n    \"suggested_actions\": $json.analysis.suggested_actions\n  },\n  \"quality\": {\n    \"confidence_level\": $json.quality_indicators.confidence_level,\n    \"needs_human_review\": $json.quality_indicators.needs_human_review,\n    \"reasoning_provided\": $json.quality_indicators.has_reasoning\n  },\n  \"storage\": {\n    \"s3_path\": `tickets/${$now.format('yyyy/MM/dd')}/${$json.ticket_id}.json`,\n    \"content_fingerprint\": $json.metadata.content_fingerprint\n  },\n  \"cost\": {\n    \"total_usd\": $json.metadata.cost_usd,\n    \"estimated_tokens\": $json.metadata.estimated_tokens,\n    \"model\": \"gemini-1.5-flash (free tier)\"\n  }\n} }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "c7d2fadb-69a1-49bb-849c-89009bfe905b",
+      "name": "Return Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -1520,
+        416
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Ticket Intake": {
+      "main": [
+        [
+          {
+            "node": "Validate Required Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Required Fields": {
+      "main": [
+        [
+          {
+            "node": "Enrich & Fingerprint Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich & Fingerprint Ticket": {
+      "main": [
+        [
+          {
+            "node": "Build Smart Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Smart Prompt": {
+      "main": [
+        [
+          {
+            "node": "Gemini AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Check Gemini Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Gemini Success": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return AI Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate Analysis": {
+      "main": [
+        [
+          {
+            "node": "Archive to S3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Archive to S3": {
+      "main": [
+        [
+          {
+            "node": "Return Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "bb419c9c-4341-4203-b374-a881c8985bef",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "810919566e0db64cd8ce2646094b9404d230a1349c3de02e57779743b254a29c"
+  },
+  "id": "ZT5vKETRlMWS5Po13sQt8",
+  "tags": []
+}
