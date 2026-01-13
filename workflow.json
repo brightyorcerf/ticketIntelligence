@@ -1,5 +1,5 @@
 {
-  "name": "AI Ticket Analyzer - OpenAI (Production)",
+  "name": "ticketIntelligence",
   "nodes": [
     {
       "parameters": {
@@ -12,10 +12,7 @@
       "name": "Webhook - Ticket Intake",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        4304,
-        1392
-      ],
+      "position": [4304, 1392],
       "webhookId": "609b006d-e25d-44de-8503-dea3e14484c0"
     },
     {
@@ -37,10 +34,7 @@
       "name": "Validate Required Fields",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        4512,
-        1392
-      ]
+      "position": [4512, 1392]
     },
     {
       "parameters": {
@@ -54,10 +48,7 @@
       "name": "Return Validation Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        4512,
-        1616
-      ]
+      "position": [4512, 1616]
     },
     {
       "parameters": {
@@ -67,10 +58,7 @@
       "name": "Enrich & Fingerprint Ticket",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        4736,
-        1392
-      ]
+      "position": [4736, 1392]
     },
     {
       "parameters": {
@@ -80,10 +68,7 @@
       "name": "Build Prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        4944,
-        1392
-      ]
+      "position": [4944, 1392]
     },
     {
       "parameters": {
@@ -94,7 +79,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer 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"
+              "value": "Bearer YOUR_OPENAI_API_KEY_HERE"
             },
             {
               "name": "Content-Type",
@@ -113,10 +98,7 @@
       "name": "OpenAI Analysis",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [
-        5168,
-        1392
-      ]
+      "position": [5168, 1392]
     },
     {
       "parameters": {
@@ -126,15 +108,12 @@
       "name": "Parse & Validate AI Output",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        5392,
-        1392
-      ]
+      "position": [5392, 1392]
     },
     {
       "parameters": {
         "operation": "upload",
-        "bucketName": "ticket-analyzer-tejaansh",
+        "bucketName": "YOUR_S3_BUCKET_NAME_HERE",
         "fileName": "={{ `tickets/${$json.ticket_id}.json` }}",
         "binaryData": false,
         "fileContent": "={{ JSON.stringify($json, null, 2) }}",
@@ -144,13 +123,10 @@
       "name": "Archive to S3",
       "type": "n8n-nodes-base.awsS3",
       "typeVersion": 1,
-      "position": [
-        5616,
-        1392
-      ],
+      "position": [5616, 1392],
       "credentials": {
         "aws": {
-          "id": "BZl579Hprxj8QNM9",
+          "id": "YOUR_AWS_CREDENTIAL_ID",
           "name": "AWS (IAM) account"
         }
       }
@@ -165,10 +141,7 @@
       "name": "Return Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        5824,
-        1392
-      ]
+      "position": [5824, 1392]
     }
   ],
   "pinData": {},
@@ -258,16 +231,16 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "3dee9648-df47-40e0-83ab-5477282c1dc5",
+  "versionId": "",
   "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "810919566e0db64cd8ce2646094b9404d230a1349c3de02e57779743b254a29c"
+    "templateCredsSetupCompleted": false,
+    "instanceId": ""
   },
-  "id": "ZT5vKETRlMWS5Po13sQt8",
+  "id": "",
   "tags": []
 }

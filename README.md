@@ -64,15 +64,56 @@ Customers mark everything as urgent. We trained the model to ignore the priority
 - AWS S3 bucket with write permissions
 
 **Installation:**
-1. Import the workflow JSON into n8n
-2. Add your OpenAI API key to the "OpenAI Analysis" node
-3. Configure AWS credentials for S3 (use IAM role with s3:PutObject permission)
-4. Update the S3 bucket name in "Archive to S3" node
-5. Activate the workflow
+
+1. **Import the workflow into n8n:**
+   - Open your n8n instance
+   - Go to Workflows → Import from File
+   - Select `ticketIntelligence-workflow.json`
+
+2. **Configure OpenAI API Key:**
+   - Open the **"OpenAI Analysis"** node
+   - In the Authorization header, replace `YOUR_KEY_HERE` with your actual OpenAI API key
+   - Get your key from: https://platform.openai.com/api-keys
+
+3. **Configure AWS S3:**
+   - Open the **"Archive to S3"** node
+   - Click on "Credentials" dropdown
+   - Add new AWS credentials with:
+     - Access Key ID
+     - Secret Access Key
+     - Region (e.g., `us-east-1`)
+   - Update the `bucketName` parameter to your S3 bucket name
+   - Ensure your IAM user has `s3:PutObject` permission
+
+4. **Activate the workflow:**
+   - Toggle the workflow to "Active"
+   - Copy the webhook URL from the "Webhook - Ticket Intake" node
+
+5. **Test it:**
+   ```bash
+   curl -X POST https://your-n8n-instance.com/webhook/ticket-intake \
+     -H "Content-Type: application/json" \
+     -d '{
+       "subject": "Cannot access my account",
+       "message": "I have been trying to log in for 2 hours. Password reset is not working.",
+       "priority": "high",
+       "customer_email": "user@example.com"
+     }'
+   ```
+
+### Configuration Guide for Forkers
+
+If you're forking this project, here's what you need to replace:
+
+| Location | What to Replace | How to Get It |
+|----------|----------------|---------------|
+| **OpenAI Analysis node** → Authorization header | `YOUR_KEY_HERE` | Get from [OpenAI Platform](https://platform.openai.com/api-keys) |
+| **Archive to S3 node** → Credentials | Add your AWS creds | Create IAM user with S3 write access |
+| **Archive to S3 node** → bucketName | `ticket-analyzer-tejaansh` | Your own S3 bucket name |
 
 **Webhook endpoint:**
 ```
-POST /ticket-intake
+POST /webhook/ticket-intake
 {
   "subject": "Can't access my account",
   "message": "I've been trying to log in for 2 hours. Password reset isn't working.",
@@ -87,7 +128,7 @@ POST /ticket-intake
 ```json
 {
   "status": "success",
-  "ticket_id": "TKT_20250113_X7K2M9",
+  "ticket_id": "TKT_20250114_X7K2M9",
   "analysis": {
     "summary": "User unable to access account; password reset mechanism failing",
     "category": "Technical Issue",
@@ -116,4 +157,5 @@ POST /ticket-intake
 Because ticket analysis is a solved problem that every company keeps re-solving badly. If you're building something similar, steal this. If you improve it, send a PR. Let's stop wasting engineering time on intake pipelines and start focusing on actually helping customers.
 
 ---
+
 **Questions?** Open an issue or fork it and make it better.
