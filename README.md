@@ -1,4 +1,4 @@
-# ticket Intelligence
+# Ticket Intelligence
 
 ![architecture.jpg](architecture.jpg)
 
@@ -8,15 +8,13 @@ I built this because I was tired of watching support teams drown in tickets whil
 
 ## The Problem  
 
-Support tickets are information gold mines. You end up answering the same questions, missing critical issues buried in "low priority" tags, and have no real-time pulse on customer sentiment.
+Support tickets are an invaluable gauge of customer sentiment, yet they are often underutilized. When teams focus solely on repetitive inquiries, high-stakes issues can easily be overlooked or misclassified as low priority
 
-Every ticket that comes in should immediately tell you three things:
 1. What's actually wrong (not just what the subject line claims)
 2. How urgent it really is (independent of the customer's panic level)
 3. What you should do about it
 
-This system is the foundation for that. Right now, it's handling intake and analysis. 
-Next up: trend detection, auto-routing to specialists, and predictive escalation before tickets blow up.
+This system is the foundation for that. Right now, it's handling intake and analysis.  
 
 ## What's Under the Hood
 
