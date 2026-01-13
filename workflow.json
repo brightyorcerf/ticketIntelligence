@@ -1,5 +1,5 @@
 {
-  "name": "AI Ticket Analyzer - Claude (Production)",
+  "name": "AI Ticket Analyzer - OpenAI (Production)",
   "nodes": [
     {
       "parameters": {
@@ -8,15 +8,15 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "5444746a-976c-4931-8a11-f85c2343326e",
+      "id": "4704d713-83b2-4d38-8c37-3391afb768f8",
       "name": "Webhook - Ticket Intake",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        2560,
-        1856
+        4304,
+        1392
       ],
-      "webhookId": "1acb7b30-4be3-422d-990e-99ce920e1ff8"
+      "webhookId": "609b006d-e25d-44de-8503-dea3e14484c0"
     },
     {
       "parameters": {
@@ -33,107 +33,102 @@
           ]
         }
       },
-      "id": "296cf093-2027-4960-85c4-ec244b7997f7",
+      "id": "1e510160-8e89-457a-b350-603b83aac5a7",
       "name": "Validate Required Fields",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        2768,
-        1856
+        4512,
+        1392
       ]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"error\": \"Missing required fields: subject and message\" } }}",
+        "responseBody": "={{ { error: 'Missing required fields: subject and message' } }}",
         "options": {
           "responseCode": 400
         }
       },
-      "id": "f359097a-132b-457d-bbe5-afa9a9355a9b",
+      "id": "210b518f-4434-4bac-ae74-189d54887f7d",
       "name": "Return Validation Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        2768,
-        2080
+        4512,
+        1616
       ]
     },
     {
       "parameters": {
-        "jsCode": "const crypto = require('crypto');\nconst body = $json.body;\n\nconst subject = String(body.subject || '').slice(0, 500).trim();\nconst message = String(body.message || '').slice(0, 5000).trim();\n\nconst fingerprint = crypto\n .createHash('sha256')\n .update((subject + message).toLowerCase())\n .digest('hex')\n .slice(0, 16);\n\nconst ticketId = `TKT_${new Date().toISOString().slice(0,10).replace(/-/g,'')}_${Math.random().toString(36).slice(2,8).toUpperCase()}`;\n\nreturn {\n json: {\n ticket_id: ticketId,\n subject,\n message,\n priority_flag: body.priority || 'medium',\n customer_email: body.customer_email || 'unknown@example.com',\n metadata: {\n fingerprint,\n received_at: new Date().toISOString()\n }\n }\n};"
+        "jsCode": "const crypto = require('crypto');\nconst body = $json.body;\n\nconst subject = String(body.subject).slice(0,500);\nconst message = String(body.message).slice(0,5000);\n\nconst fingerprint = crypto.createHash('sha256').update((subject+message).toLowerCase()).digest('hex').slice(0,16);\nconst ticketId = `TKT_${new Date().toISOString().slice(0,10).replace(/-/g,'')}_${Math.random().toString(36).slice(2,8).toUpperCase()}`;\n\nreturn {\n  json: {\n    ticket_id: ticketId,\n    subject,\n    message,\n    priority_flag: body.priority || 'medium',\n    customer_email: body.customer_email || 'unknown@example.com',\n    metadata: { fingerprint, received_at: new Date().toISOString() }\n  }\n};"
       },
-      "id": "8d2f011f-f09c-4f9b-9e82-977ad144559c",
+      "id": "8d367dc0-cf35-4722-a9f6-dc40ac02149e",
       "name": "Enrich & Fingerprint Ticket",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2992,
-        1856
+        4736,
+        1392
       ]
     },
     {
       "parameters": {
-        "jsCode": "const t = $json;\n\nreturn {\n json: {\n ...t,\n llm_prompt: `IMPORTANT: Respond ONLY with valid minified JSON. No markdown.\n\nAnalyze this customer support ticket.\n\nSubject: ${t.subject}\nMessage: ${t.message}\nPriority: ${t.priority_flag}\n\nReturn JSON:\n{\n \"summary\": \"short summary\",\n \"category\": \"Billing|Delivery|Product Issue|Technical Issue|Other\",\n \"sentiment\": \"Positive|Neutral|Negative\",\n \"urgency\": \"Low|Medium|High|Critical\",\n \"suggested_actions\": [\"action1\", \"action2\"],\n \"confidence_score\": 0.0,\n \"reasoning\": \"brief explanation\"\n}`\n }\n};"
+        "jsCode": "const t = $json;\nreturn { json: { ...t, llm_prompt: `Respond ONLY with valid minified JSON.\n\nAnalyze support ticket:\nSubject: ${t.subject}\nMessage: ${t.message}\nPriority: ${t.priority_flag}\n\nReturn JSON:\n{\n\"summary\":\"\",\n\"category\":\"Billing|Delivery|Product Issue|Technical Issue|Other\",\n\"sentiment\":\"Positive|Neutral|Negative\",\n\"urgency\":\"Low|Medium|High|Critical\",\n\"suggested_actions\":[\"\"],\n\"confidence_score\":0.0,\n\"reasoning\":\"\"\n}` } };"
       },
-      "id": "a9192d42-8233-458c-bc78-7334f8f42426",
+      "id": "b7e5ebf5-ac75-40b9-b3b1-070f5d5a14f0",
       "name": "Build Prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3200,
-        1856
+        4944,
+        1392
       ]
     },
     {
       "parameters": {
-  "method": "POST",
-  "url": "https://api.anthropic.com/v1/messages",
-  "sendHeaders": true,
-  "headerParameters": {
-    "parameters": [
-      {
-        "name": "x-api-key",
-        "value": "sk-ant-API-KEY-HERE"
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer sk-OPENAI-API-KEY-HERE"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  model: 'gpt-4o-mini',\n  temperature: 0.3,\n  messages: [\n    { role: 'system', content: 'Return ONLY valid JSON.' },\n    { role: 'user', content: $json.llm_prompt }\n  ]\n} }}",
+        "options": {
+          "timeout": 30000
+        }
       },
-      {
-        "name": "anthropic-version",
-        "value": "2023-06-01"
-      },
-      {
-        "name": "content-type",
-        "value": "application/json"
-      }
-    ]
-  },
-  "sendBody": true,
-  "specifyBody": "json",
-  "jsonBody": "={{ {\n    \"model\": \"claude-3-5-haiku-20241022\",\n    \"max_tokens\": 1024,\n    \"messages\": [\n      {\n        \"role\": \"user\",\n        \"content\": $json.llm_prompt\n      }\n    ]\n  } }}",
-  "options": {
-    "timeout": 30000
-  }
-}
-,
-      "id": "c8f12eb3-9dbd-46a8-b7f2-620461cba384",
-      "name": "Claude AI Analysis",
+      "id": "afb6024a-22f0-4beb-ac9c-fd3e6d4b9399",
+      "name": "OpenAI Analysis",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [
-        3440,
-        1856
+        5168,
+        1392
       ]
     },
     {
       "parameters": {
-        "jsCode": "const raw = $json.content?.[0]?.text;\n\nlet analysis;\ntry {\n const cleaned = raw.replace(/```json|```/g, '').trim();\n analysis = JSON.parse(cleaned);\n} catch {\n analysis = {\n summary: raw?.slice(0, 100) || 'Unparseable response',\n category: 'Other',\n sentiment: 'Neutral',\n urgency: 'Medium',\n suggested_actions: ['Manual review required'],\n confidence_score: 0.4,\n reasoning: 'Model output was not valid JSON'\n };\n}\n\nconst enrichData = $('Enrich & Fingerprint Ticket').first().json;\n\nreturn {\n json: {\n ticket_id: enrichData.ticket_id,\n analysis,\n metadata: enrichData.metadata\n }\n};"
+        "jsCode": "const raw = $json.choices?.[0]?.message?.content;\nlet analysis;\ntry { analysis = JSON.parse(raw); }\ncatch { analysis = { summary:'Parse failed', category:'Other', sentiment:'Neutral', urgency:'Medium', suggested_actions:['Manual review'], confidence_score:0.4, reasoning:'Invalid JSON' }; }\n\nconst base = $('Enrich & Fingerprint Ticket').first().json;\nreturn { json: { ticket_id: base.ticket_id, analysis, metadata: base.metadata } };"
       },
-      "id": "bfe9e70a-411c-4db8-8fac-06a818fba17d",
+      "id": "d7784825-da96-46b0-beca-4e341e836285",
       "name": "Parse & Validate AI Output",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3664,
-        1856
+        5392,
+        1392
       ]
     },
     {
@@ -141,15 +136,17 @@
         "operation": "upload",
         "bucketName": "ticket-analyzer-tejaansh",
         "fileName": "={{ `tickets/${$json.ticket_id}.json` }}",
+        "binaryData": false,
+        "fileContent": "={{ JSON.stringify($json, null, 2) }}",
         "additionalFields": {}
       },
-      "id": "a281005b-d623-42f7-bfb9-b06ab68415ed",
+      "id": "8ce2e6c1-6c72-4365-8c57-7c50dec9ac42",
       "name": "Archive to S3",
       "type": "n8n-nodes-base.awsS3",
       "typeVersion": 1,
       "position": [
-        3888,
-        1856
+        5616,
+        1392
       ],
       "credentials": {
         "aws": {
@@ -161,16 +158,16 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { status: 'success', ticket_id: $json.ticket_id, analysis: $json.analysis } }}",
+        "responseBody": "={{ { status:'success', ticket_id:$json.ticket_id, analysis:$json.analysis } }}",
         "options": {}
       },
-      "id": "fe306c58-fbaf-4d2f-b779-f86eaa357e69",
+      "id": "37746f86-5ba5-4120-885c-3b6df8296ccb",
       "name": "Return Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        4112,
-        1856
+        5824,
+        1392
       ]
     }
   ],
@@ -220,14 +217,14 @@
       "main": [
         [
           {
-            "node": "Claude AI Analysis",
+            "node": "OpenAI Analysis",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Claude AI Analysis": {
+    "OpenAI Analysis": {
       "main": [
         [
           {
@@ -266,7 +263,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "6e86455c-de7a-43ad-b8d2-20cacaf12b5f",
+  "versionId": "500e54d3-78bb-4ab6-a290-6bb96b615270",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "810919566e0db64cd8ce2646094b9404d230a1349c3de02e57779743b254a29c"
