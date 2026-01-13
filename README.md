@@ -30,7 +30,7 @@ n8n + OpenAI GPT-4o-mini + AWS S3 + Node.js
 ## What I Learned Building This
 
 ### 1. Workflow is provider-agnostic
-I intially tested Gemini and Claude, but due to API configuration setting complications and costs I finalized on OpenAi; our prompt, parsing and storage layers are decoupled, so switching providers is simple
+I initially tested Gemini and Claude, but due to API configuration setting complications and costs I finalized on OpenAI; our prompt, parsing and storage layers are decoupled, so switching providers is simple
 
 ### 2. LLMs lie about JSON
 Even when you explicitly prompt for "valid JSON only," GPT sometimes returns markdown code blocks or adds commentary. My solution: aggressive parsing with a try-catch that strips ```json fences and validates the schema. If parsing fails, we return a safe fallback object and flag it for manual review.  
@@ -57,7 +57,7 @@ Customers mark everything as urgent. We trained the model to ignore the priority
 ## Setup
 
 Prerequisites:
-- n8n instance (self-hosted or cloud)x
+- n8n instance (self-hosted or cloud)
 - OpenAI API key
 - AWS S3 bucket with write permissions
 
