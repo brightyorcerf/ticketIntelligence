@@ -94,7 +94,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer sk-OPENAI-API-KEY-HERE"
+              "value": "Bearer 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"
             },
             {
               "name": "Content-Type",
@@ -263,7 +263,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "500e54d3-78bb-4ab6-a290-6bb96b615270",
+  "versionId": "3dee9648-df47-40e0-83ab-5477282c1dc5",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "810919566e0db64cd8ce2646094b9404d230a1349c3de02e57779743b254a29c"
